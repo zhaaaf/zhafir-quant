@@ -1,0 +1,49 @@
+"""Stock universe lists for screener."""
+
+IDX_LQ45 = [
+    "BBCA.JK","BBRI.JK","BMRI.JK","TLKM.JK","ASII.JK",
+    "UNVR.JK","HMSP.JK","PGAS.JK","ANTM.JK","INDF.JK",
+    "ICBP.JK","SMGR.JK","PTBA.JK","ADRO.JK","INCO.JK",
+    "KLBF.JK","SIDO.JK","CPIN.JK","MAPI.JK","ACES.JK",
+    "LSIP.JK","AALI.JK","BSDE.JK","CTRA.JK","PWON.JK",
+    "INKP.JK","TKIM.JK","INTP.JK","TOWR.JK","JSMR.JK",
+    "AKRA.JK","EXCL.JK","ISAT.JK","SCMA.JK","EMTK.JK",
+    "JPFA.JK","SRIL.JK","DMAS.JK","WTON.JK","WIKA.JK",
+    "WSKT.JK","PTPP.JK","ERAA.JK","MNCN.JK","GGRM.JK",
+]
+
+IDX_KOMPAS100 = IDX_LQ45 + [
+    "BBTN.JK","BJBR.JK","BNGA.JK","BNLI.JK","BDMN.JK",
+    "BKSL.JK","BRPT.JK","BULL.JK","CMNP.JK","DKFT.JK",
+    "DSNG.JK","ELSA.JK","ESSA.JK","FASW.JK","GJTL.JK",
+    "HRUM.JK","ITMG.JK","KKGI.JK","MBAP.JK","MDLN.JK",
+    "MEDC.JK","MIKA.JK","MYOR.JK","NRCA.JK","PJAA.JK",
+    "PMMP.JK","PPRO.JK","RALS.JK","ROTI.JK","SIDO.JK",
+    "SMRA.JK","SPIA.JK","SRTG.JK","TBIG.JK","TINS.JK",
+    "TPIA.JK","ULTJ.JK","UNTR.JK","VKTR.JK","WIFI.JK",
+    "WOOD.JK","WSBP.JK","YPAS.JK","ZINC.JK","BRIS.JK",
+    "PGEO.JK","AMRT.JK","HEAL.JK","GOTO.JK","BUKA.JK",
+]
+
+SP500_TOP50 = [
+    "AAPL","MSFT","NVDA","AMZN","GOOGL","META","TSLA","BRK-B",
+    "UNH","LLY","JPM","V","XOM","AVGO","MA","PG","COST","HD",
+    "MRK","ABBV","CVX","KO","PEP","WMT","BAC","ADBE","CRM","TMO",
+    "ACN","MCD","ABT","CSCO","DHR","TXN","VZ","NFLX","WFC","LIN",
+    "NKE","PM","NEE","RTX","UPS","SPGI","BMY","AMGN","LOW","INTC",
+    "QCOM","AMAT",
+]
+
+NASDAQ100_TOP30 = [
+    "AAPL","MSFT","NVDA","AMZN","META","TSLA","AVGO","ASML",
+    "GOOGL","COST","NFLX","AMD","ADBE","QCOM","PEP","INTU",
+    "AMAT","CSCO","TXN","BKNG","HON","SBUX","MDLZ","ADP",
+    "PANW","LRCX","KLAC","MRVL","SNPS","CDNS",
+]
+
+UNIVERSES = {
+    "IDX LQ45":       IDX_LQ45,
+    "IDX Kompas100":  IDX_KOMPAS100,
+    "S&P 500 Top 50": SP500_TOP50,
+    "Nasdaq 100":     NASDAQ100_TOP30,
+}
