@@ -51,3 +51,5 @@ backend/store.json
 # env files — keep template, ignore secrets
 .env.local
 backend/.env
+
+.vercel

@@ -4,5 +4,16 @@
   "framework": "nextjs",
   "env": {
     "NEXT_PUBLIC_API_URL": "https://your-railway-app.up.railway.app"
+  },
+  "experimentalServices": {
+    "frontend": {
+      "routePrefix": "/",
+      "framework": "nextjs"
+    },
+    "backend": {
+      "root": "backend",
+      "entrypoint": "main:app",
+      "routePrefix": "/_/backend"
+    }
   }
 }
