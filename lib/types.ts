@@ -23,6 +23,19 @@ export interface StockInfo {
   currency: string;
   exchange: string;
   error?: string;
+  // Mathematical scoring
+  f_score?: number;
+  f_score_max?: number;
+  f_strength?: string;
+  graham_number?: number;
+  margin_of_safety?: number;
+  graham_signal?: string;
+  momentum_3m?: number;
+  momentum_6m?: number;
+  momentum_12m?: number;
+  momentum_pts?: number;
+  composite_score?: number;
+  score_label?: string;
 }
 
 export interface PriceHistory {
