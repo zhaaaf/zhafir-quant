@@ -95,7 +95,7 @@ export default function ResearchPage() {
   return (
     <div className="min-h-screen">
       <Topbar title="Research Bibliography" subtitle="peer-reviewed sources" />
-      <div className="p-6 max-w-4xl space-y-8">
+      <div className="p-4 md:p-6 max-w-4xl space-y-8">
         <div className="bg-[#11111b] border border-[#2a2a3e] rounded-lg p-4 text-sm text-[#6c7086]">
           All mathematical models in this application are based on peer-reviewed academic research.
           DOI links point to original papers. This project aims to prove that physics and OR models

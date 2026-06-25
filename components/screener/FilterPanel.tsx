@@ -50,7 +50,7 @@ export default function FilterPanel({ filters, onChange, onApply, loading }: Pro
           {/* Universe */}
           <div className="pt-3">
             <label className="text-[#6c7086] font-mono text-xs uppercase tracking-wider block mb-2">Universe</label>
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
               {UNIVERSES.map(u => (
                 <button
                   key={u}
@@ -82,7 +82,7 @@ export default function FilterPanel({ filters, onChange, onApply, loading }: Pro
           </div>
 
           {/* Numeric filters */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[
               { key: "min_pe" as const,              label: "P/E Min",    placeholder: "e.g. 5"   },
               { key: "max_pe" as const,              label: "P/E Max",    placeholder: "e.g. 25"  },

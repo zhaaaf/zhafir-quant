@@ -86,7 +86,7 @@ function OptimizerInner() {
     <div className="min-h-screen">
       <Topbar title="Portfolio Optimizer" subtitle={model} />
 
-      <div className="p-6 grid grid-cols-[300px_1fr] gap-6">
+      <div className="p-4 md:p-6 grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5">
         {/* Left panel */}
         <div className="space-y-5">
           {/* Investor Schema */}
@@ -249,7 +249,7 @@ function OptimizerInner() {
               {/* Key metrics */}
               <div>
                 <div className="text-[#6c7086] font-mono text-xs uppercase tracking-wider mb-2">Results — {meta.label}</div>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {[
                     { label: "Expected Return", value: fmtPct(result.expected_return), color: "#9ece6a" },
                     { label: "Volatility",       value: fmtPct(result.volatility),       color: "#f7768e" },
@@ -269,7 +269,7 @@ function OptimizerInner() {
               </div>
 
               {/* Charts */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <AllocationChart weightsMap={result.weights_map} />
 
                 {frontier && (
@@ -285,7 +285,7 @@ function OptimizerInner() {
               {result.rmt_stats && (
                 <div className="bg-[#11111b] border border-[#7dcfff]/20 rounded-lg p-4">
                   <div className="text-[#7dcfff] font-mono text-xs uppercase tracking-wider mb-2">RMT Analysis (Marchenko-Pastur)</div>
-                  <div className="grid grid-cols-4 gap-3 text-xs font-mono">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
                     <div><span className="text-[#6c7086]">Signal EV: </span><span className="text-[#9ece6a]">{result.rmt_stats.n_signal}</span></div>
                     <div><span className="text-[#6c7086]">Noise EV: </span><span className="text-[#f7768e]">{result.rmt_stats.n_noise}</span></div>
                     <div><span className="text-[#6c7086]">λ+: </span><span className="text-[#7dcfff]">{fmt(result.rmt_stats.lambda_max, 3)}</span></div>

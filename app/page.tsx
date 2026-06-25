@@ -22,7 +22,7 @@ export default function DashboardPage() {
     <div className="min-h-screen">
       <Topbar title="Dashboard" subtitle="Zhafir's Quant Investing" />
 
-      <div className="p-6 max-w-5xl">
+      <div className="p-4 md:p-6 max-w-5xl">
         {/* Hero */}
         <div className="mb-8 border border-[#2a2a3e] rounded-xl bg-[#11111b] p-6">
           <div className="text-[#7aa2f7] font-mono text-xs uppercase tracking-widest mb-1">Portfolio Science</div>
@@ -44,7 +44,7 @@ export default function DashboardPage() {
         {/* Quick Start */}
         <div className="mb-8">
           <div className="text-[#6c7086] font-mono text-xs uppercase tracking-wider mb-3">Workflow</div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {quickStart.map(({ icon: Icon, label, desc, href }) => (
               <Link key={href} href={href}
                 className="flex items-start gap-3 p-4 bg-[#11111b] border border-[#2a2a3e] rounded-lg hover:border-[#7aa2f7]/30 hover:bg-[#1a1a2e] transition-all group">

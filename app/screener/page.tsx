@@ -84,7 +84,7 @@ export default function ScreenerPage() {
         subtitle={tab === "universe" ? `${filters.universe}` : "manual search"}
       />
 
-      <div className="p-6 space-y-5">
+      <div className="p-4 md:p-6 space-y-5">
         {/* Tabs */}
         <div className="flex gap-1 bg-[#11111b] border border-[#2a2a3e] rounded-lg p-1 w-fit">
           {([["universe","🔍 Universe Filter"],["manual","✋ Manual Search"]] as [Tab, string][]).map(([key, label]) => (

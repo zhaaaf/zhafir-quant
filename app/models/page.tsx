@@ -114,7 +114,7 @@ export default function ModelsPage() {
   return (
     <div className="min-h-screen">
       <Topbar title="Mathematical Models" subtitle="equations & references" />
-      <div className="p-6 max-w-4xl space-y-6">
+      <div className="p-4 md:p-6 max-w-4xl space-y-6">
         {models.map(m => (
           <div key={m.id} className="bg-[#11111b] border border-[#2a2a3e] rounded-xl overflow-hidden">
             {/* Header */}
@@ -123,7 +123,7 @@ export default function ModelsPage() {
               <h2 className="font-bold text-[#cdd6f4]" style={{ color: m.color }}>{m.name}</h2>
             </div>
 
-            <div className="p-5 grid grid-cols-2 gap-5">
+            <div className="p-4 md:p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* Formulation */}
               <div>
                 <div className="text-[#6c7086] font-mono text-xs uppercase tracking-wider mb-2">Formulation</div>

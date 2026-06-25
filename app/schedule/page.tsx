@@ -12,7 +12,7 @@ export default function SchedulePage() {
     <div className="min-h-screen">
       <Topbar title="Notification Schedule" subtitle="08:45 & 15:45 WIB" />
 
-      <div className="p-6 grid grid-cols-[1fr_340px] gap-6 max-w-5xl">
+      <div className="p-4 md:p-6 grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5 max-w-5xl">
         {/* Left: form */}
         <NotificationForm />
 
