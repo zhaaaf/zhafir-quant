@@ -67,12 +67,10 @@ function OptimizerInner() {
         risk_free_rate: riskFreeRate,
         target_return: targetReturn ? parseFloat(targetReturn) / 100 : undefined,
       };
-      const [opt, front] = await Promise.all([
-        api.optimizer.optimize(req),
-        api.optimizer.frontier(req),
-      ]);
-      setResult(opt);
-      setFrontier(front);
+      // FIX: single /compute call — one price download, returns portfolio + frontier
+      const data = await api.optimizer.compute(req);
+      setResult(data);
+      setFrontier({ frontier: data.frontier ?? [], tickers: data.tickers, model: data.model });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Optimization failed");
     } finally {

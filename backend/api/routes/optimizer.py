@@ -38,44 +38,82 @@ def _load_data(tickers: List[str], period: str):
     )
 
 
+def _run_optimize(req: OptimizeRequest, mu, cov, rets, valid_tickers):
+    """Core optimization — separated so compute() can reuse without re-downloading."""
+    if req.model == "markowitz":
+        result = (minimize_variance(mu, cov, req.target_return, req.allow_short)
+                  if req.target_return is not None
+                  else maximize_sharpe(mu, cov, req.risk_free_rate, req.allow_short))
+
+    elif req.model == "rmt":
+        cleaned_cov, rmt_stats = clean_covariance_matrix(rets)
+        result = maximize_sharpe(mu, cleaned_cov, req.risk_free_rate, req.allow_short)
+        result["rmt_stats"] = rmt_stats
+
+    elif req.model == "cvar":
+        target = req.target_return if req.target_return is not None else float(np.mean(mu))
+        result = minimize_cvar(rets, mu, target, req.alpha, req.allow_short)
+
+    elif req.model == "quantum":
+        result = quantum_portfolio_optimize(mu, cov, req.risk_aversion)
+
+    elif req.model == "entropy":
+        result = maximize_entropy_portfolio(mu, cov, min_return=req.target_return)
+
+    else:
+        raise HTTPException(status_code=400, detail="Unknown model")
+
+    result["tickers"]     = valid_tickers
+    result["weights_map"] = {t: round(float(w), 6)
+                             for t, w in zip(valid_tickers, result.get("weights", []))}
+    result["model"]       = req.model
+    return result
+
+
+def _run_frontier(req: OptimizeRequest, mu, cov, rets, valid_tickers):
+    """Compute efficient frontier — reuses already-loaded data."""
+    if req.model == "rmt":
+        cov, _ = clean_covariance_matrix(rets)
+        frontier = compute_efficient_frontier(mu, cov, n_points=50)
+    elif req.model == "cvar":
+        frontier = compute_cvar_frontier(rets, mu, n_points=30, alpha=req.alpha)
+    elif req.model in ("markowitz", "entropy", "quantum"):
+        frontier = compute_efficient_frontier(mu, cov, n_points=50,
+                                              allow_short=req.allow_short)
+    else:
+        frontier = []
+    return {"frontier": frontier, "tickers": valid_tickers, "model": req.model}
+
+
+# ── FIX: single endpoint that returns BOTH portfolio + frontier in one price download
+@router.post("/compute")
+def compute(req: OptimizeRequest):
+    """
+    Combined endpoint: downloads price data ONCE, returns optimal portfolio + frontier.
+    Replaces calling /optimize and /frontier separately (which caused double downloads).
+    """
+    try:
+        tickers = [t.upper() for t in req.tickers]
+        valid_tickers, mu, cov, rets = _load_data(tickers, req.period)
+
+        portfolio = _run_optimize(req, mu, cov, rets, valid_tickers)
+        frontier  = _run_frontier(req, mu, cov, rets, valid_tickers)
+
+        return {**portfolio, "frontier": frontier["frontier"]}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Legacy endpoints kept for backward compatibility
 @router.post("/optimize")
 def optimize_portfolio(req: OptimizeRequest):
     try:
         tickers = [t.upper() for t in req.tickers]
         valid_tickers, mu, cov, rets = _load_data(tickers, req.period)
-
-        if req.model == "markowitz":
-            if req.target_return is not None:
-                result = minimize_variance(mu, cov, req.target_return, req.allow_short)
-            else:
-                result = maximize_sharpe(mu, cov, req.risk_free_rate, req.allow_short)
-
-        elif req.model == "rmt":
-            cleaned_cov, rmt_stats = clean_covariance_matrix(rets)
-            result = maximize_sharpe(mu, cleaned_cov, req.risk_free_rate, req.allow_short)
-            result["rmt_stats"] = rmt_stats
-
-        elif req.model == "cvar":
-            target = req.target_return if req.target_return is not None else float(np.mean(mu))
-            result = minimize_cvar(rets, mu, target, req.alpha, req.allow_short)
-
-        elif req.model == "quantum":
-            result = quantum_portfolio_optimize(mu, cov, req.risk_aversion)
-
-        elif req.model == "entropy":
-            result = maximize_entropy_portfolio(mu, cov, min_return=req.target_return)
-
-        else:
-            raise HTTPException(status_code=400, detail="Unknown model")
-
-        result["tickers"] = valid_tickers
-        result["weights_map"] = {
-            t: round(float(w), 6)
-            for t, w in zip(valid_tickers, result.get("weights", []))
-        }
-        result["model"] = req.model
-        return result
-
+        return _run_optimize(req, mu, cov, rets, valid_tickers)
     except HTTPException:
         raise
     except Exception as e:
@@ -87,17 +125,7 @@ def compute_frontier(req: OptimizeRequest):
     try:
         tickers = [t.upper() for t in req.tickers]
         valid_tickers, mu, cov, rets = _load_data(tickers, req.period)
-
-        if req.model == "rmt":
-            cov, _ = clean_covariance_matrix(rets)
-            frontier = compute_efficient_frontier(mu, cov, n_points=50)
-        elif req.model == "cvar":
-            frontier = compute_cvar_frontier(rets, mu, n_points=30, alpha=req.alpha)
-        else:
-            frontier = compute_efficient_frontier(mu, cov, n_points=50, allow_short=req.allow_short)
-
-        return {"frontier": frontier, "tickers": valid_tickers, "model": req.model}
-
+        return _run_frontier(req, mu, cov, rets, valid_tickers)
     except HTTPException:
         raise
     except Exception as e:

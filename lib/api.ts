@@ -36,12 +36,19 @@ export const api = {
   },
 
   optimizer: {
+    // Combined endpoint: one price download returns optimal portfolio + frontier
+    compute: (body: OptimizeRequest) =>
+      req<OptimizeResult & { frontier: FrontierResult["frontier"] }>(`/api/optimizer/compute`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+
+    // Legacy (kept for direct use if needed)
     optimize: (body: OptimizeRequest) =>
       req<OptimizeResult>(`/api/optimizer/optimize`, {
         method: "POST",
         body: JSON.stringify(body),
       }),
-
     frontier: (body: OptimizeRequest) =>
       req<FrontierResult>(`/api/optimizer/frontier`, {
         method: "POST",

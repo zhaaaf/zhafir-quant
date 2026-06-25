@@ -77,12 +77,18 @@ def altman_z_score(info: dict) -> dict:
     if not total_assets or total_assets <= 0:
         return {"z_score": None, "zone": "N/A", "data_period": "Annual / Quarterly"}
 
-    working_capital    = (info.get("totalCurrentAssets") or 0) - (info.get("totalCurrentLiabilities") or 0)
-    retained_earnings  = info.get("retainedEarnings") or 0
-    ebit               = info.get("ebit") or (info.get("operatingIncome") or 0)
-    mkt_cap            = info.get("marketCap") or 0
-    total_liabilities  = info.get("totalDebt") or 0
-    revenue            = info.get("totalRevenue") or 0
+    working_capital   = (info.get("totalCurrentAssets") or 0) - (info.get("totalCurrentLiabilities") or 0)
+    retained_earnings = info.get("retainedEarnings") or 0
+    ebit              = info.get("ebit") or (info.get("operatingIncome") or 0)
+    mkt_cap           = info.get("marketCap") or 0
+    revenue           = info.get("totalRevenue") or 0
+
+    # FIX: X4 uses TOTAL LIABILITIES (not totalDebt which is interest-bearing debt only).
+    # totalLiabilities = totalAssets - stockholdersEquity
+    # yfinance field: "totalLiab" or computed from totalAssets - commonStockholderEquity
+    stockholders_eq   = (info.get("totalStockholderEquity")
+                         or info.get("commonStockholderEquity") or 0)
+    total_liabilities = max(total_assets - stockholders_eq, info.get("totalDebt") or 0)
 
     X1 = working_capital   / total_assets
     X2 = retained_earnings / total_assets

@@ -1,24 +1,44 @@
 """
 APScheduler — daily signals at 08:45 and 15:45 WIB (Asia/Jakarta).
 Sends push notifications via ntfy.sh.
+
+FIX: sync yfinance calls (fetch_price_history, generate_signal) are wrapped in
+asyncio.to_thread() so they don't block the FastAPI event loop.
 """
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+import asyncio
 import pytz
+from datetime import datetime
 
 import store
 import notifier
 from data.fetcher import fetch_price_history
 from models.signals import generate_signal
-from datetime import datetime
 
-WIB = pytz.timezone("Asia/Jakarta")
-
+WIB       = pytz.timezone("Asia/Jakarta")
 scheduler = AsyncIOScheduler(timezone=WIB)
 
 
+def _build_report(tickers: list[str], schema: str) -> str:
+    """Sync function: fetch prices & compute signals for all tickers."""
+    lines: list[str] = []
+    for ticker in tickers[:10]:
+        try:
+            prices = fetch_price_history([ticker], period="3mo")
+            if prices.empty:
+                continue
+            series = prices.iloc[:, 0].dropna()
+            sig    = generate_signal(series, schema)
+            lines.append(notifier.format_signal_report(ticker, sig, schema))
+            lines.append("")
+        except Exception as e:
+            lines.append(f"⚠️ {ticker}: {e}")
+    return "\n".join(lines).strip()
+
+
 async def _run_signals(session: str) -> None:
-    cfg = store.get()
+    cfg     = store.get()
     topic   = cfg.get("ntfy_topic", "")
     tickers = cfg.get("watchlist", [])
     schema  = cfg.get("schema", "swing")
@@ -27,25 +47,16 @@ async def _run_signals(session: str) -> None:
         return
 
     now_wib = datetime.now(WIB).strftime("%d %b %Y %H:%M WIB")
-    lines = [f"{'🌅 Opening' if session == 'morning' else '🌆 Closing'} Signal  |  {now_wib}", ""]
+    header  = f"{'🌅 Opening' if session == 'morning' else '🌆 Closing'} Signal  |  {now_wib}\n"
 
-    for ticker in tickers[:10]:  # max 10 tickers per notification
-        try:
-            prices = fetch_price_history([ticker], period="3mo")
-            if prices.empty:
-                continue
-            series = prices.iloc[:, 0].dropna()
-            sig = generate_signal(series, schema)
-            lines.append(notifier.format_signal_report(ticker, sig, schema))
-            lines.append("")
-        except Exception as e:
-            lines.append(f"⚠️ {ticker}: error ({e})")
+    # FIX: run blocking I/O in a thread pool, not in the async event loop
+    body = await asyncio.to_thread(_build_report, tickers, schema)
 
     title = f"{'📊 IDX Morning' if session == 'morning' else '📉 IDX Closing'} | Zhafir Quant"
-    msg   = "\n".join(lines).strip()
     tags  = ["chart_with_upwards_trend"] if session == "morning" else ["bell"]
-
-    notifier.send(topic, title, msg, priority="default", tags=tags)
+    await asyncio.to_thread(
+        notifier.send, topic, title, header + body, "default", tags
+    )
 
 
 async def morning_job() -> None:
@@ -57,9 +68,7 @@ async def closing_job() -> None:
 
 
 def start_scheduler() -> None:
-    # 08:45 WIB
-    scheduler.add_job(morning_job, CronTrigger(hour=8, minute=45, timezone=WIB))
-    # 15:45 WIB
+    scheduler.add_job(morning_job, CronTrigger(hour=8,  minute=45, timezone=WIB))
     scheduler.add_job(closing_job, CronTrigger(hour=15, minute=45, timezone=WIB))
     scheduler.start()
 
