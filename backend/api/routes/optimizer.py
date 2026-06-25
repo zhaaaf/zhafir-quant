@@ -4,7 +4,7 @@ from typing import List, Optional, Literal
 import numpy as np
 
 from data.fetcher import fetch_price_history, compute_stats
-from models.markowitz import compute_efficient_frontier, maximize_sharpe, minimize_variance
+from models.markowitz import compute_efficient_frontier, maximize_sharpe, minimize_variance, _global_min_variance_return
 from models.cvar import minimize_cvar, compute_cvar_frontier
 from models.rmt import clean_covariance_matrix
 from models.quantum import quantum_portfolio_optimize
@@ -101,6 +101,43 @@ def compute(req: OptimizeRequest):
 
         return {**portfolio, "frontier": frontier["frontier"]}
 
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class RangeRequest(BaseModel):
+    tickers: List[str] = Field(..., min_length=2, max_length=30)
+    period: str = "2y"
+    allow_short: bool = False
+
+
+@router.post("/range")
+def get_feasible_range(req: RangeRequest):
+    """
+    Returns the feasible return range [r_min, r_max] for the slider.
+    r_min = global minimum variance portfolio return (efficient frontier start)
+    r_max = maximum achievable return (100% in best single asset)
+    """
+    try:
+        tickers = [t.upper() for t in req.tickers]
+        valid_tickers, mu, cov, rets = _load_data(tickers, req.period)
+
+        r_min = _global_min_variance_return(mu, cov, req.allow_short)
+        r_max = float(np.max(mu))
+        r_mean = float(np.mean(mu))
+        # Suggested default: mean return (midpoint of efficient frontier)
+        r_default = float(np.clip(r_mean, r_min, r_max))
+
+        return {
+            "tickers":      valid_tickers,
+            "r_min":        round(r_min   * 100, 2),
+            "r_max":        round(r_max   * 100, 2),
+            "r_default":    round(r_default * 100, 2),
+            "r_mean":       round(r_mean  * 100, 2),
+            "period":       req.period,
+        }
     except HTTPException:
         raise
     except Exception as e:

@@ -36,6 +36,12 @@ export const api = {
   },
 
   optimizer: {
+    range: (tickers: string[], period = "2y", allow_short = false) =>
+      req<{ tickers: string[]; r_min: number; r_max: number; r_default: number; r_mean: number; period: string }>(
+        `/api/optimizer/range`,
+        { method: "POST", body: JSON.stringify({ tickers, period, allow_short }) }
+      ),
+
     // Combined endpoint: one price download returns optimal portfolio + frontier
     compute: (body: OptimizeRequest) =>
       req<OptimizeResult & { frontier: FrontierResult["frontier"] }>(`/api/optimizer/compute`, {

@@ -5,6 +5,7 @@ import Topbar from "@/components/layout/Topbar";
 import ModelSelector from "@/components/optimizer/ModelSelector";
 import EfficientFrontierChart from "@/components/optimizer/EfficientFrontierChart";
 import AllocationChart from "@/components/optimizer/AllocationChart";
+import ReturnSlider from "@/components/optimizer/ReturnSlider";
 import { api } from "@/lib/api";
 import type { ModelType, OptimizeResult, FrontierResult } from "@/lib/types";
 import { MODEL_META, fmtPct, fmt } from "@/lib/utils";
@@ -29,7 +30,7 @@ function OptimizerInner() {
   const [allowShort, setAllowShort] = useState(false);
   const [riskAversion, setRiskAversion] = useState(0.5);
   const [alpha, setAlpha] = useState(0.95);
-  const [targetReturn, setTargetReturn] = useState("");
+  const [targetReturnPct, setTargetReturnPct] = useState<number | null>(null); // null = maximize Sharpe
   const [riskFreeRate, setRiskFreeRate] = useState(0.04);
 
   const applySchema = (s: Schema) => {
@@ -65,7 +66,7 @@ function OptimizerInner() {
         risk_aversion: riskAversion,
         alpha,
         risk_free_rate: riskFreeRate,
-        target_return: targetReturn ? parseFloat(targetReturn) / 100 : undefined,
+        target_return: targetReturnPct !== null ? targetReturnPct / 100 : undefined,
       };
       // FIX: single /compute call — one price download, returns portfolio + frontier
       const data = await api.optimizer.compute(req);
@@ -179,13 +180,13 @@ function OptimizerInner() {
                 </label>
               )}
 
-              <label className="flex flex-col gap-1">
-                <span className="text-[#6c7086] text-xs font-mono">Target Return % (optional)</span>
-                <input type="number" step="0.1" placeholder="e.g. 15"
-                  value={targetReturn} onChange={e => setTargetReturn(e.target.value)}
-                  className="bg-[#1a1a2e] border border-[#2a2a3e] text-[#cdd6f4] text-xs rounded px-2 py-1.5 outline-none w-full placeholder:text-[#45475a]"
-                />
-              </label>
+              <ReturnSlider
+                tickers={tickers}
+                period={period}
+                allowShort={allowShort}
+                value={targetReturnPct}
+                onChange={setTargetReturnPct}
+              />
 
               <label className="flex flex-col gap-1">
                 <span className="text-[#6c7086] text-xs font-mono">Risk-Free Rate %</span>
