@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import List
-from data.fetcher import search_tickers, fetch_stock_info, fetch_price_history
+from data.fetcher import search_tickers, fetch_stock_info, fetch_batch_info_parallel, fetch_price_history
 
 router = APIRouter()
 
@@ -21,13 +21,9 @@ def get_stock_info(ticker: str):
 
 @router.post("/batch-info")
 def get_batch_info(tickers: List[str]):
-    results = []
-    for ticker in tickers:
-        try:
-            results.append(fetch_stock_info(ticker.upper()))
-        except Exception:
-            results.append({"symbol": ticker, "error": "Not found"})
-    return {"stocks": results}
+    upper = [t.upper() for t in tickers]
+    stocks = fetch_batch_info_parallel(upper)
+    return {"stocks": stocks}
 
 
 @router.get("/prices/{ticker}")
