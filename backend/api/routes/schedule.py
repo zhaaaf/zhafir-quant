@@ -1,19 +1,28 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from typing import List, Literal
-import store
-import notifier
-from data.fetcher import fetch_price_history
-from models.signals import generate_signal, SCHEMA_META
+from typing import List, Optional, Literal
+import store, notifier
+from scheduler import _build_notification
 
 router = APIRouter()
 
+ModelType   = Literal["markowitz", "cvar", "rmt", "quantum", "entropy"]
+SchemaType  = Literal["day", "swing", "long"]
+UniverseKey = Literal["IDX LQ45", "IDX Kompas100", "S&P 500 Top 50", "Nasdaq 100"]
 
-class NotifyConfig(BaseModel):
-    ntfy_topic: str
-    watchlist: List[str]
-    schema: Literal["day", "swing", "long"] = "swing"
-    notifications_enabled: bool = True
+
+class PipelineConfig(BaseModel):
+    ntfy_topic:           str
+    notifications_enabled: bool           = True
+    # Auto-pipeline
+    universe:     UniverseKey             = "IDX LQ45"
+    top_n:        int                     = 8
+    schema:       SchemaType              = "swing"
+    model:        ModelType               = "markowitz"
+    period:       str                     = "1y"
+    # Manual override (optional)
+    use_watchlist: bool                   = False
+    watchlist:    List[str]               = []
 
 
 @router.get("/config")
@@ -22,7 +31,7 @@ def get_config():
 
 
 @router.post("/config")
-def save_config(cfg: NotifyConfig):
+def save_config(cfg: PipelineConfig):
     return store.update(cfg.model_dump())
 
 
@@ -34,58 +43,35 @@ def test_notification():
         return {"success": False, "error": "No ntfy topic configured"}
     ok = notifier.send(
         topic,
-        "✅ Zhafir Quant — Test Notification",
-        "Notifikasi berhasil! App siap kirim signal pukul 08:45 & 15:45 WIB.",
+        "✅ Zhafir Quant — Connection OK",
+        "Notifikasi berhasil!\nPipeline: Screen → Score → Optimize → Push\nJadwal: 08:45 & 15:45 WIB",
         tags=["white_check_mark"],
     )
     return {"success": ok}
 
 
 @router.post("/run-now")
-def run_signals_now():
+def run_now(session: Literal["morning", "closing"] = "morning"):
+    """
+    Trigger the full auto pipeline immediately:
+    Screen → Score top-N → Optimize → Push ntfy
+    """
     cfg = store.get()
-    topic   = cfg.get("ntfy_topic", "")
-    tickers = cfg.get("watchlist", [])
-    schema  = cfg.get("schema", "swing")
+    if not cfg.get("ntfy_topic"):
+        return {"success": False, "error": "No ntfy topic configured"}
 
-    if not tickers:
-        return {"success": False, "error": "Watchlist kosong"}
-
-    results = []
-    lines = ["📊 Manual Signal Report\n"]
-
-    for ticker in tickers[:10]:
-        try:
-            prices = fetch_price_history([ticker], period="3mo")
-            series = prices.iloc[:, 0].dropna()
-            sig = generate_signal(series, schema)
-            results.append({"ticker": ticker, **sig})
-            lines.append(notifier.format_signal_report(ticker, sig, schema))
-            lines.append("")
-        except Exception as e:
-            results.append({"ticker": ticker, "signal": "ERROR", "error": str(e)})
-
-    if topic:
-        notifier.send(topic, "📊 Manual Signal | Zhafir Quant", "\n".join(lines).strip())
-
-    return {"success": True, "results": results, "schema_meta": SCHEMA_META[schema]}
-
-
-@router.get("/signals")
-def get_signals(schema: str = "swing"):
-    cfg = store.get()
-    tickers = cfg.get("watchlist", [])
-    if not tickers:
-        return {"signals": [], "schema": schema}
-
-    signals = []
-    for ticker in tickers:
-        try:
-            prices = fetch_price_history([ticker], period="3mo")
-            series = prices.iloc[:, 0].dropna()
-            sig = generate_signal(series, schema)
-            signals.append({"ticker": ticker, **sig})
-        except Exception as e:
-            signals.append({"ticker": ticker, "signal": "ERROR", "error": str(e)})
-
-    return {"signals": signals, "schema": schema, "schema_meta": SCHEMA_META.get(schema, {})}
+    try:
+        title, body = _build_notification(session, cfg)
+        ok = notifier.send(cfg["ntfy_topic"], title, body,
+                           tags=["chart_with_upwards_trend" if session == "morning" else "bell"])
+        # Return a preview of the notification body
+        return {
+            "success":   ok,
+            "title":     title,
+            "body":      body,
+            "universe":  cfg.get("universe"),
+            "top_n":     cfg.get("top_n"),
+            "model":     cfg.get("model"),
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
