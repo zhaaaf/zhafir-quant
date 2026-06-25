@@ -23,19 +23,33 @@ export interface StockInfo {
   currency: string;
   exchange: string;
   error?: string;
-  // Mathematical scoring
+  // Mathematical scoring — Fundamental
   f_score?: number;
   f_score_max?: number;
   f_strength?: string;
   graham_number?: number;
   margin_of_safety?: number;
   graham_signal?: string;
+  z_score?: number;
+  z_zone?: string;
+  // Momentum
+  momentum_1m?: number;
   momentum_3m?: number;
   momentum_6m?: number;
   momentum_12m?: number;
   momentum_pts?: number;
+  high_52w_ratio?: number;
+  // Technical
+  rsi?: number;
+  macd_cross?: string;
+  macd_hist?: number;
+  bb_pct?: number;
+  bb_signal?: string;
+  ma_cross?: string;
+  // Composite
   composite_score?: number;
   score_label?: string;
+  period_used?: string;
 }
 
 export interface PriceHistory {

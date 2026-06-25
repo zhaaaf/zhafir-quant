@@ -4,6 +4,7 @@ import { SlidersHorizontal, ChevronDown } from "lucide-react";
 
 export interface Filters {
   universe: string;
+  period: string;
   sector: string;
   min_pe: string;
   max_pe: string;
@@ -14,6 +15,15 @@ export interface Filters {
 }
 
 const UNIVERSES = ["IDX LQ45", "IDX Kompas100", "S&P 500 Top 50", "Nasdaq 100"];
+
+const PERIODS: { value: string; label: string; note: string }[] = [
+  { value: "1mo", label: "1 Bulan",  note: "RSI · MACD · BB" },
+  { value: "3mo", label: "3 Bulan",  note: "Tech + 3M mom" },
+  { value: "6mo", label: "6 Bulan",  note: "Tech + 6M mom" },
+  { value: "1y",  label: "1 Tahun",  note: "Full model suite" },
+  { value: "2y",  label: "2 Tahun",  note: "12M momentum" },
+  { value: "3y",  label: "3 Tahun",  note: "Factor range" },
+];
 const SECTORS = [
   "","Technology","Financial Services","Energy","Consumer Cyclical",
   "Healthcare","Communication Services","Industrials","Basic Materials",
@@ -63,6 +73,31 @@ export default function FilterPanel({ filters, onChange, onApply, loading }: Pro
                   ].join(" ")}
                 >
                   {u}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Period */}
+          <div>
+            <label className="text-[#6c7086] font-mono text-xs uppercase tracking-wider block mb-2">
+              Periode Data
+              <span className="text-[#45475a] ml-2 normal-case">— menentukan window untuk model teknikal & momentum</span>
+            </label>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+              {PERIODS.map(p => (
+                <button
+                  key={p.value}
+                  onClick={() => onChange({ ...filters, period: p.value })}
+                  className={[
+                    "px-2 py-2 rounded text-xs font-mono transition-colors text-left",
+                    filters.period === p.value
+                      ? "bg-[#1e2035] text-[#7aa2f7] border border-[#3d59a1]/40"
+                      : "text-[#6c7086] hover:text-[#a6adc8] border border-[#2a2a3e] hover:border-[#313244]",
+                  ].join(" ")}
+                >
+                  <div className="font-bold">{p.label}</div>
+                  <div className="text-[10px] text-[#45475a] mt-0.5">{p.note}</div>
                 </button>
               ))}
             </div>
