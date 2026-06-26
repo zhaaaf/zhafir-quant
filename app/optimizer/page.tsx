@@ -5,9 +5,12 @@ import Topbar from "@/components/layout/Topbar";
 import EfficientFrontierChart from "@/components/optimizer/EfficientFrontierChart";
 import AllocationChart from "@/components/optimizer/AllocationChart";
 import ReturnSlider from "@/components/optimizer/ReturnSlider";
+import ParamHelpButton from "@/components/optimizer/ParamHelp";
+import ResultInterpretation from "@/components/optimizer/ResultInterpretation";
 import { api } from "@/lib/api";
 import type { ModelType, OptimizeResult, FrontierResult } from "@/lib/types";
 import { MODEL_META, fmtPct, fmt } from "@/lib/utils";
+import { PARAM_HELP, MODEL_HELP } from "@/lib/paramHelp";
 import { Loader2, Play, Plus, X, ChevronDown } from "lucide-react";
 
 /* ── Investor schema presets ─────────────────────────────────────── */
@@ -171,16 +174,35 @@ function OptimizerInner() {
             )}
           </Section>
 
-          {/* Model — compact tabs */}
+          {/* Model — compact tabs + guidance */}
           <Section title="Model Matematika" defaultOpen={true}>
             <ModelTabs value={model} onChange={setModel} />
+            {/* Model usage guide for beginners */}
+            <div className="mt-2 bg-[#0a0a0f] border border-[#1e1e2e] rounded-lg p-3 space-y-1 text-xs">
+              <div className="flex gap-1.5">
+                <span className="text-[#9ece6a] shrink-0">✓ Kapan:</span>
+                <span className="text-[#6c7086]">{MODEL_HELP[model]?.when}</span>
+              </div>
+              <div className="flex gap-1.5">
+                <span className="text-[#f7768e] shrink-0">✗ Hindari:</span>
+                <span className="text-[#6c7086]">{MODEL_HELP[model]?.avoid}</span>
+              </div>
+              <div className="flex gap-1.5">
+                <span className="text-[#7aa2f7] shrink-0">SR tipikal:</span>
+                <span className="text-[#6c7086]">{MODEL_HELP[model]?.typical_sharpe}</span>
+              </div>
+            </div>
           </Section>
 
           {/* Parameters */}
           <Section title="Parameter" defaultOpen={false}>
             {/* Period */}
             <label className="flex flex-col gap-1">
-              <span className="text-[#6c7086] text-xs font-mono">Period Data</span>
+              <span className="text-[#6c7086] text-xs font-mono flex items-center">
+                Period Data
+                <ParamHelpButton help={PARAM_HELP.period}
+                  onSuggest={v => setPeriod(String(v))} />
+              </span>
               <select value={period} onChange={e => setPeriod(e.target.value)}
                 className="bg-[#0a0a0f] border border-[#2a2a3e] text-[#cdd6f4] text-xs rounded px-2 py-2 outline-none">
                 {["6mo","1y","2y","3y","5y"].map(p => <option key={p} value={p}>{p}</option>)}
@@ -190,7 +212,11 @@ function OptimizerInner() {
             {/* CVaR alpha */}
             {model === "cvar" && (
               <label className="flex flex-col gap-1">
-                <span className="text-[#6c7086] text-xs font-mono">CVaR α (confidence level)</span>
+                <span className="text-[#6c7086] text-xs font-mono flex items-center">
+                  CVaR α (confidence level)
+                  <ParamHelpButton help={PARAM_HELP.alpha}
+                    onSuggest={v => setAlpha(Number(v))} />
+                </span>
                 <div className="flex items-center gap-2">
                   <input type="range" min={0.9} max={0.99} step={0.01} value={alpha}
                     onChange={e => setAlpha(parseFloat(e.target.value))}
@@ -199,13 +225,18 @@ function OptimizerInner() {
                   />
                   <span className="text-[#9ece6a] font-mono text-xs w-10 text-right">{(alpha*100).toFixed(0)}%</span>
                 </div>
+                <span className="text-[#45475a] text-[10px]">95% = standar industri. 99% = sangat konservatif.</span>
               </label>
             )}
 
             {/* Quantum λ */}
             {model === "quantum" && (
               <label className="flex flex-col gap-1">
-                <span className="text-[#6c7086] text-xs font-mono">Risk Aversion λ</span>
+                <span className="text-[#6c7086] text-xs font-mono flex items-center">
+                  Risk Aversion λ
+                  <ParamHelpButton help={PARAM_HELP.risk_aversion}
+                    onSuggest={v => setRiskAversion(Number(v))} />
+                </span>
                 <div className="flex items-center gap-2">
                   <input type="range" min={0.1} max={2} step={0.1} value={riskAversion}
                     onChange={e => setRiskAversion(parseFloat(e.target.value))}
@@ -214,12 +245,21 @@ function OptimizerInner() {
                   />
                   <span className="text-[#bb9af7] font-mono text-xs w-10 text-right">{riskAversion.toFixed(1)}</span>
                 </div>
+                <span className="text-[#45475a] text-[10px]">0.2=agresif · 0.5=seimbang · 1.0=defensif</span>
               </label>
             )}
 
-            {/* Risk-free rate — FIX: uncontrolled display string */}
+            {/* Risk-free rate */}
             <label className="flex flex-col gap-1">
-              <span className="text-[#6c7086] text-xs font-mono">Risk-Free Rate (%/tahun)</span>
+              <span className="text-[#6c7086] text-xs font-mono flex items-center">
+                Risk-Free Rate (%/tahun)
+                <ParamHelpButton help={PARAM_HELP.risk_free_rate}
+                  onSuggest={v => {
+                    const n = Number(v);
+                    setRfDisplay(String(v));
+                    setRiskFreeRate(n / 100);
+                  }} />
+              </span>
               <input
                 type="number" step="0.1" min="0" max="20"
                 value={rfDisplay}
@@ -230,16 +270,26 @@ function OptimizerInner() {
                 }}
                 onBlur={() => setRfDisplay((riskFreeRate * 100).toFixed(1))}
                 className="bg-[#0a0a0f] border border-[#2a2a3e] text-[#cdd6f4] text-xs rounded px-2 py-2 outline-none w-full focus:border-[#7aa2f7]/50"
-                placeholder="4.0"
+                placeholder="5.75"
               />
-              <span className="text-[#45475a] text-[10px]">Contoh: 4.0 = BI Rate 4% per tahun</span>
+              <span className="text-[#45475a] text-[10px]">BI Rate Juni 2026: 5.75% · SBN 10yr: ±6.5%</span>
             </label>
 
             {/* Short selling */}
-            <label className="flex items-center gap-2 cursor-pointer py-1">
-              <input type="checkbox" checked={allowShort} onChange={e => setAllowShort(e.target.checked)} className="accent-[#7aa2f7]" />
-              <span className="text-[#6c7086] text-xs font-mono">Allow Short Selling</span>
-            </label>
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer py-1">
+                <input type="checkbox" checked={allowShort} onChange={e => setAllowShort(e.target.checked)} className="accent-[#7aa2f7]" />
+                <span className="text-[#6c7086] text-xs font-mono flex items-center">
+                  Allow Short Selling
+                  <ParamHelpButton help={PARAM_HELP.allow_short} />
+                </span>
+              </label>
+              {allowShort && (
+                <div className="text-[#f7768e] text-[10px] ml-6 leading-relaxed">
+                  ⚠ Short selling meningkatkan risiko kerugian tak terbatas. Hanya untuk trader berpengalaman.
+                </div>
+              )}
+            </div>
           </Section>
 
           {/* Target return slider */}
@@ -283,6 +333,11 @@ function OptimizerInner() {
 
           {result && (
             <>
+              {/* Interpretation panel — shown first */}
+              {result.interpretation && (
+                <ResultInterpretation interp={result.interpretation} />
+              )}
+
               {/* Metrics */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[

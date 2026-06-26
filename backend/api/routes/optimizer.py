@@ -9,6 +9,7 @@ from models.cvar import minimize_cvar, compute_cvar_frontier
 from models.rmt import clean_covariance_matrix
 from models.quantum import quantum_portfolio_optimize
 from models.entropy import maximize_entropy_portfolio
+from models.interpretation import interpret_result
 
 router = APIRouter()
 
@@ -99,7 +100,10 @@ def compute(req: OptimizeRequest):
         portfolio = _run_optimize(req, mu, cov, rets, valid_tickers)
         frontier  = _run_frontier(req, mu, cov, rets, valid_tickers)
 
-        return {**portfolio, "frontier": frontier["frontier"]}
+        # Add interpretation (beginner-friendly explanation of results)
+        interp = interpret_result(portfolio, req.model, mu, req.risk_free_rate)
+
+        return {**portfolio, "frontier": frontier["frontier"], "interpretation": interp}
 
     except HTTPException:
         raise

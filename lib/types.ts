@@ -80,6 +80,23 @@ export interface RmtStats {
   signal_eigenvalues: number[];
 }
 
+export interface Interpretation {
+  quality:        string;
+  grade:          string;
+  action:         string;
+  action_detail:  string;
+  messages:       string[];
+  warnings:       string[];
+  suggestions:    string[];
+  n_active:       number;
+  max_weight_pct: number;
+  hhi:            number;
+  ret_pct:        number;
+  vol_pct:        number;
+  sharpe:         number;
+  grade_color:    string;
+}
+
 export interface OptimizeResult {
   tickers: string[];
   weights: number[];
@@ -98,6 +115,7 @@ export interface OptimizeResult {
   qubo_energy?: number;
   risk_aversion?: number;
   rmt_stats?: RmtStats;
+  interpretation?: Interpretation;
 }
 
 export interface FrontierPoint {
