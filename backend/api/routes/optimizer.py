@@ -10,6 +10,10 @@ from models.rmt import clean_covariance_matrix
 from models.quantum import quantum_portfolio_optimize
 from models.entropy import maximize_entropy_portfolio
 from models.interpretation import interpret_result
+from models.intraday import (
+    fetch_intraday_ohlc, compute_oc_returns, intraday_stats,
+    optimize_intraday, suggest_stop_loss, interpret_intraday,
+)
 
 router = APIRouter()
 
@@ -142,6 +146,73 @@ def get_feasible_range(req: RangeRequest):
             "r_mean":       round(r_mean  * 100, 2),
             "period":       req.period,
         }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class IntradayRequest(BaseModel):
+    tickers:        List[str] = Field(..., min_length=2, max_length=20)
+    days:           int       = Field(default=60, ge=10, le=90)
+    risk_free_rate: float     = 0.0575   # BI Rate default
+
+
+@router.post("/intraday")
+def intraday_scenario(req: IntradayRequest):
+    """
+    Full intraday day trading scenario:
+    1. Fetch daily OHLC (last N days)
+    2. Compute open-to-close returns (true day-trade P&L)
+    3. Optimize portfolio on intraday returns
+    4. Return: allocation, per-ticker stats, stop-loss, interpretation
+
+    Why use open-to-close instead of close-to-close?
+    → Close-to-close includes overnight gap risk. Day trader who buys at open
+      and sells at close only experiences intraday movement.
+    """
+    try:
+        tickers = [t.upper() for t in req.tickers]
+        rf_daily = req.risk_free_rate / 252   # annual to daily
+
+        # 1. Fetch OHLC
+        ohlc = fetch_intraday_ohlc(tickers, days=req.days)
+
+        # 2. Open-to-close returns
+        oc_ret = compute_oc_returns(ohlc, tickers)
+        valid  = [t for t in tickers if t in oc_ret.columns and oc_ret[t].dropna().__len__() >= 10]
+
+        if len(valid) < 2:
+            raise HTTPException(400, "Insufficient intraday data for selected tickers")
+
+        oc_valid = oc_ret[valid].dropna()
+
+        # 3. Per-ticker statistics
+        stats = intraday_stats(oc_valid)
+
+        # 4. Optimize on intraday returns
+        opt = optimize_intraday(oc_valid, rf_daily=rf_daily)
+        opt["tickers"]     = valid
+        opt["weights_map"] = {t: round(float(w), 4) for t, w in zip(valid, opt["weights"])}
+
+        # 5. Stop-loss / take-profit suggestion
+        sl = suggest_stop_loss(opt.get("daily_volatility", 0.01))
+
+        # 6. Interpretation
+        interp = interpret_intraday(opt, stats)
+
+        return {
+            **opt,
+            "ticker_stats":   stats,
+            "stop_loss":      sl,
+            "interpretation": interp,
+            "days_analyzed":  len(oc_valid),
+            "note":           (
+                "Return dihitung dari harga OPEN ke CLOSE (bukan close-to-close). "
+                f"Analisis berbasis {len(oc_valid)} hari perdagangan terakhir."
+            ),
+        }
+
     except HTTPException:
         raise
     except Exception as e:

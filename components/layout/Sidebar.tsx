@@ -1,12 +1,13 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart2, Search, TrendingUp, FlaskConical, BookOpen, Bell } from "lucide-react";
+import { BarChart2, Search, TrendingUp, FlaskConical, BookOpen, Bell, Zap } from "lucide-react";
 
 const nav = [
   { href: "/",          icon: BarChart2,    label: "Dashboard"  },
   { href: "/screener",  icon: Search,       label: "Screener"   },
   { href: "/optimizer", icon: TrendingUp,   label: "Optimizer"  },
+  { href: "/scenario",  icon: Zap,          label: "Day Trade"  },
   { href: "/schedule",  icon: Bell,         label: "Schedule"   },
   { href: "/models",    icon: FlaskConical, label: "Models"     },
   { href: "/research",  icon: BookOpen,     label: "Research"   },
