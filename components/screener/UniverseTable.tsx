@@ -3,13 +3,15 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { StockInfo } from "@/lib/types";
 import { fmtMcap, fmtPct, fmt } from "@/lib/utils";
-import { TrendingUp, CheckSquare, Square, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { SCHEMAS, type Schema } from "@/lib/schema";
+import { TrendingUp, CheckSquare, Square, ChevronUp, ChevronDown, ChevronsUpDown, Columns } from "lucide-react";
 
 interface Props {
   stocks: StockInfo[];
   selected: Set<string>;
   onToggle: (symbol: string) => void;
   onSelectAll: () => void;
+  schema?: Schema;
 }
 
 type SortDir = "asc" | "desc";
@@ -167,10 +169,26 @@ const COLS: Col[] = [
   },
 ];
 
-export default function UniverseTable({ stocks, selected, onToggle, onSelectAll }: Props) {
-  const router = useRouter();
-  const [sortKey, setSortKey] = useState<string>("composite_score");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
+// Schema-specific column sets (keys must match COLS[].key)
+const SCHEMA_COLS: Record<Schema, string[]> = {
+  day:   ["symbol", "current_price", "rsi", "bb_signal", "macd_cross", "momentum_3m", "ma_cross", "composite_score", "score_label"],
+  swing: ["symbol", "current_price", "composite_score", "score_label", "momentum_3m", "momentum_6m", "f_score", "ma_cross", "rsi"],
+  long:  ["symbol", "current_price", "composite_score", "score_label", "f_score", "margin_of_safety", "momentum_6m", "dividend_yield"],
+};
+const SCHEMA_SORT: Record<Schema, string> = {
+  day: "rsi", swing: "composite_score", long: "f_score",
+};
+
+export default function UniverseTable({ stocks, selected, onToggle, onSelectAll, schema = "swing" }: Props) {
+  const router   = useRouter();
+  const sc       = SCHEMAS[schema];
+  const [showAll, setShowAll]   = useState(false);
+  const [sortKey, setSortKey]   = useState<string>(SCHEMA_SORT[schema]);
+  const [sortDir, setSortDir]   = useState<SortDir>("desc");
+
+  // Filter columns based on schema (unless showAll)
+  const visibleColKeys = showAll ? COLS.map(c => c.key as string) : SCHEMA_COLS[schema];
+  const visibleCols    = COLS.filter(c => visibleColKeys.includes(c.key as string));
 
   const handleSort = (key: string) => {
     if (sortKey === key) {
@@ -190,6 +208,13 @@ export default function UniverseTable({ stocks, selected, onToggle, onSelectAll 
       return sortDir === "desc" ? bv - av : av - bv;
     });
   }, [stocks, sortKey, sortDir]);
+
+  // dividend_yield col exists in base COLS? add if needed for long schema
+  const dividendCol: Col = {
+    key: "dividend_yield", label: "Div%", sortable: true, group: "basic",
+    getValue: (s: StockInfo) => s.dividend_yield ?? null,
+    render: (s: StockInfo) => <span className="font-mono text-[#9ece6a] text-xs">{s.dividend_yield != null ? fmtPct(s.dividend_yield) : "—"}</span>,
+  };
 
   const SortIcon = ({ colKey }: { colKey: string }) => {
     if (sortKey !== colKey) return <ChevronsUpDown size={10} className="text-[#313244] ml-0.5" />;
@@ -228,14 +253,23 @@ export default function UniverseTable({ stocks, selected, onToggle, onSelectAll 
           {selected.size > 0 && (
             <span className="text-[#7aa2f7] text-xs font-mono">{selected.size} selected</span>
           )}
+          {/* Schema column badge */}
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded"
+            style={{ background: sc.color + "22", color: sc.color }}>
+            {sc.icon} {sc.label} view
+          </span>
+          <button onClick={() => setShowAll(p => !p)}
+            className="flex items-center gap-1 text-[#45475a] hover:text-[#6c7086] text-[10px] transition-colors">
+            <Columns size={10} />
+            {showAll ? "Schema view" : "Semua kolom"}
+          </button>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[#45475a] text-xs font-mono">{stocks.length} saham ditemukan</span>
+          <span className="text-[#45475a] text-xs font-mono">{stocks.length} saham</span>
           {selected.size >= 2 && (
-            <button
-              onClick={goOptimize}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#7aa2f7]/10 hover:bg-[#7aa2f7]/20 border border-[#7aa2f7]/30 text-[#7aa2f7] rounded-lg text-xs font-semibold transition-colors"
-            >
+            <button onClick={goOptimize}
+              className="flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-xs font-semibold transition-colors"
+              style={{ background: sc.color + "15", borderColor: sc.color + "44", color: sc.color }}>
               <TrendingUp size={11} />
               Optimize {selected.size} stocks
             </button>
@@ -253,7 +287,7 @@ export default function UniverseTable({ stocks, selected, onToggle, onSelectAll 
           <thead>
             <tr className="border-b border-[#2a2a3e] bg-[#0a0a0f]">
               <th className="w-8 px-2 py-2.5" />
-              {COLS.map(col => (
+              {visibleCols.map(col => (
                 <th
                   key={col.key}
                   className={[
@@ -270,16 +304,6 @@ export default function UniverseTable({ stocks, selected, onToggle, onSelectAll 
                   </span>
                 </th>
               ))}
-            </tr>
-            {/* Column group header */}
-            <tr className="border-b border-[#1e1e2e] bg-[#0a0a0f]">
-              <td />
-              <td colSpan={9} className="px-3 py-1 text-[#313244] font-mono text-[10px] uppercase tracking-widest">
-                ── Fundamental Data
-              </td>
-              <td colSpan={5} className="px-3 py-1 text-[#3d59a1] font-mono text-[10px] uppercase tracking-widest">
-                ── Mathematical Models
-              </td>
             </tr>
           </thead>
           <tbody>
@@ -299,7 +323,7 @@ export default function UniverseTable({ stocks, selected, onToggle, onSelectAll 
                     ? <CheckSquare size={12} className="text-[#7aa2f7] mx-auto" />
                     : <Square size={12} className="text-[#45475a] mx-auto" />}
                 </td>
-                {COLS.map(col => (
+                {visibleCols.map(col => (
                   <td key={col.key} className="px-3 py-2.5">
                     {col.render(s)}
                   </td>
