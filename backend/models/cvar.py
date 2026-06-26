@@ -65,11 +65,13 @@ def minimize_cvar(returns: np.ndarray, mean_returns: np.ndarray,
 
     if res.success:
         w        = res.x[:n]
+        port_ret = float(w @ mean_returns)
         port_vol = float(np.std(returns @ w) * np.sqrt(252))
         return {
             "weights":         w.tolist(),
-            "expected_return": float(w @ mean_returns),
+            "expected_return": port_ret,
             "volatility":      port_vol,
+            "sharpe_ratio":    float(port_ret / port_vol) if port_vol > 1e-10 else 0.0,
             "cvar":            float(res.fun),
             "var":             float(res.x[n]),
             "success":         True,

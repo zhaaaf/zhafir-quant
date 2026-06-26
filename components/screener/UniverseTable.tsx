@@ -167,16 +167,81 @@ const COLS: Col[] = [
       </span>
     ) : <span className="text-[#313244]">—</span>,
   },
+  {
+    key: "dividend_yield", label: "Dividen", sortable: true, group: "basic",
+    getValue: s => s.dividend_yield ?? null,
+    render: s => <span className="font-mono text-[#9ece6a] text-xs">{s.dividend_yield != null ? fmtPct(s.dividend_yield) : "—"}</span>,
+  },
+  // ── Technical columns (Day/Swing schema) ─────────────────────────
+  {
+    key: "rsi", label: "RSI", sortable: true, group: "score",
+    getValue: s => s.rsi ?? null,
+    render: s => {
+      const v = s.rsi;
+      if (v == null) return <span className="text-[#313244]">—</span>;
+      const color = v < 30 ? "#9ece6a" : v > 70 ? "#f7768e" : "#a6adc8";
+      return <span className="font-mono text-xs font-semibold" style={{ color }}>{v}</span>;
+    },
+  },
+  {
+    key: "bb_signal", label: "BB Signal", sortable: false, group: "score",
+    render: s => {
+      const v = s.bb_signal;
+      if (!v) return <span className="text-[#313244]">—</span>;
+      const color = v === "Oversold" ? "#9ece6a" : v === "Overbought" ? "#f7768e" : "#6c7086";
+      return <span className="font-mono text-xs" style={{ color }}>{v}</span>;
+    },
+  },
+  {
+    key: "macd_cross", label: "MACD", sortable: false, group: "score",
+    render: s => {
+      const v = s.macd_cross;
+      if (!v) return <span className="text-[#313244]">—</span>;
+      const color = v === "Bullish" ? "#9ece6a" : v === "Bearish" ? "#f7768e" : "#6c7086";
+      return <span className="font-mono text-xs" style={{ color }}>{v}</span>;
+    },
+  },
+  {
+    key: "ma_cross", label: "MA Cross", sortable: false, group: "score",
+    render: s => {
+      const v = s.ma_cross;
+      if (!v) return <span className="text-[#313244]">—</span>;
+      const color = v === "Golden" || v === "Bullish" ? "#9ece6a"
+                  : v === "Death"  || v === "Bearish" ? "#f7768e" : "#6c7086";
+      return <span className="font-mono text-xs" style={{ color }}>{v}</span>;
+    },
+  },
+  // ── Fundamental columns (Long schema) ────────────────────────────
+  {
+    key: "graham_signal", label: "Graham", sortable: false, group: "score",
+    render: s => {
+      const v = s.graham_signal;
+      if (!v) return <span className="text-[#313244]">—</span>;
+      const color = GRAHAM_COLOR[v] ?? "#6c7086";
+      return <span className="font-mono text-xs" style={{ color }}>{v}</span>;
+    },
+  },
+  {
+    key: "z_zone", label: "Altman", sortable: false, group: "score",
+    render: s => {
+      const v = s.z_zone;
+      if (!v) return <span className="text-[#313244]">—</span>;
+      const color = v === "Safe" ? "#9ece6a" : v === "Distress" ? "#f7768e" : "#e0af68";
+      return <span className="font-mono text-xs" style={{ color }}>{v}</span>;
+    },
+  },
 ];
 
-// Schema-specific column sets (keys must match COLS[].key)
+// Schema-specific column sets — all keys must exist in COLS above
 const SCHEMA_COLS: Record<Schema, string[]> = {
   day:   ["symbol", "current_price", "rsi", "bb_signal", "macd_cross", "momentum_3m", "ma_cross", "composite_score", "score_label"],
   swing: ["symbol", "current_price", "composite_score", "score_label", "momentum_3m", "momentum_6m", "f_score", "ma_cross", "rsi"],
-  long:  ["symbol", "current_price", "composite_score", "score_label", "f_score", "margin_of_safety", "momentum_6m", "dividend_yield"],
+  long:  ["symbol", "current_price", "composite_score", "score_label", "f_score", "graham_signal", "margin_of_safety", "z_zone", "dividend_yield"],
 };
 const SCHEMA_SORT: Record<Schema, string> = {
-  day: "rsi", swing: "composite_score", long: "f_score",
+  day:   "composite_score",   // highest composite = best day trade candidate
+  swing: "composite_score",
+  long:  "f_score",           // highest F-Score = strongest fundamental
 };
 
 export default function UniverseTable({ stocks, selected, onToggle, onSelectAll, schema = "swing" }: Props) {
@@ -208,13 +273,6 @@ export default function UniverseTable({ stocks, selected, onToggle, onSelectAll,
       return sortDir === "desc" ? bv - av : av - bv;
     });
   }, [stocks, sortKey, sortDir]);
-
-  // dividend_yield col exists in base COLS? add if needed for long schema
-  const dividendCol: Col = {
-    key: "dividend_yield", label: "Div%", sortable: true, group: "basic",
-    getValue: (s: StockInfo) => s.dividend_yield ?? null,
-    render: (s: StockInfo) => <span className="font-mono text-[#9ece6a] text-xs">{s.dividend_yield != null ? fmtPct(s.dividend_yield) : "—"}</span>,
-  };
 
   const SortIcon = ({ colKey }: { colKey: string }) => {
     if (sortKey !== colKey) return <ChevronsUpDown size={10} className="text-[#313244] ml-0.5" />;
