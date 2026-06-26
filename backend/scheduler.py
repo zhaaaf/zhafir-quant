@@ -36,8 +36,12 @@ SIGNAL_EMOJI = {"BUY": "🟢", "SELL": "🔴", "HOLD": "🟡", "WATCH": "🔵", 
 # ── Core pipeline (sync — runs in thread) ───────────────────────────────────
 
 def _score_tickers(tickers: list[str], period: str, schema: str,
-                   prices_df) -> list[dict]:
-    """Score each ticker using all mathematical models. Uses batch price data."""
+                   prices_df, info_map: dict) -> list[dict]:
+    """
+    Score each ticker. Works even when Yahoo Finance 401s block .info:
+    - Price data (yf.download) always available → momentum + technical scoring
+    - Fundamental data (info_map) used when available → bonus quality score
+    """
     scored = []
     for ticker in tickers:
         try:
@@ -47,22 +51,29 @@ def _score_tickers(tickers: list[str], period: str, schema: str,
             if len(series) < 20:
                 continue
 
-            # Pull cached info (already fetched in batch)
-            from data.fetcher import _cache_get
-            info = _cache_get(ticker) or {}
+            # Use info from batch fetch (may be {} if 401 blocked it)
+            info = info_map.get(ticker, {})
 
-            f   = piotroski_f_score(info)
-            gn  = graham_number(info)
-            az  = altman_z_score(info)
-            mom = momentum_score(series, period)
+            # Always computable from price data
+            mom   = momentum_score(series, period)
             rsi_v = rsi(series)
-            bb  = bollinger_position(series)
+            bb    = bollinger_position(series)
+            sig   = generate_signal(series, schema)
+
+            # Fundamental — may be empty due to 401
+            f  = piotroski_f_score(info)
+            gn = graham_number(info)
+            az = altman_z_score(info)
+
             comp = composite_score(info, f, gn, az, mom, rsi_v, bb)
-            sig  = generate_signal(series, schema)
+
+            # Current price: prefer info, fall back to last price in df
+            cur_price = info.get("current_price") or float(series.iloc[-1])
+            currency  = info.get("currency", "IDR" if ticker.endswith(".JK") else "USD")
 
             scored.append({
                 "symbol":          ticker,
-                "name":            info.get("name", ticker),
+                "name":            info.get("name") or ticker,
                 "composite_score": comp,
                 "score_label":     score_label(comp),
                 "signal":          sig["signal"],
@@ -71,8 +82,9 @@ def _score_tickers(tickers: list[str], period: str, schema: str,
                 "f_max":           f["max"],
                 "mos":             gn.get("margin_of_safety"),
                 "momentum_3m":     mom.get("momentum_3m"),
-                "current_price":   info.get("current_price"),
-                "currency":        info.get("currency", ""),
+                "current_price":   round(cur_price, 2),
+                "currency":        currency,
+                "has_fundamental": bool(info.get("pe_ratio") or info.get("market_cap")),
             })
         except Exception:
             pass
@@ -118,8 +130,10 @@ def _optimize(tickers: list[str], model: str, period: str) -> dict | None:
 
 def _fmt_price(s: dict) -> str:
     p   = s.get("current_price")
-    cur = "Rp" if s.get("currency") == "IDR" else "$"
-    return f"{cur}{p:,.0f}" if p else "—"
+    cur = "Rp" if s.get("currency") in ("IDR", "") and s.get("symbol","").endswith(".JK") else "$"
+    if p is None:
+        return "—"
+    return f"{cur}{p:,.0f}" if cur == "Rp" else f"{cur}{p:.2f}"
 
 
 def _build_notification(session: str, cfg: dict) -> tuple[str, str]:
@@ -143,20 +157,30 @@ def _build_notification(session: str, cfg: dict) -> tuple[str, str]:
         source_label = f"{universe_name}"
 
     if not tickers:
-        return "⚠️ No tickers", "Configure universe or watchlist in Schedule settings."
+        return "No tickers", "Configure universe or watchlist in Schedule settings."
 
-    # ── 2. Fetch info (parallel, cached after first run) ──
-    all_info = fetch_batch_info_parallel(tickers, max_workers=10)
-
-    # ── 3. Batch price download (ONE yfinance call for all tickers) ──
+    # ── 2. Batch price download FIRST (yf.download always works on Railway) ──
     prices_df = fetch_price_history(tickers, period=period)
+    available = [t for t in tickers if t in prices_df.columns]
 
-    # ── 4. Score all tickers ──
-    scored = _score_tickers(tickers, period, schema, prices_df)
+    if not available:
+        return "Data Error", "Could not download price data from Yahoo Finance."
+
+    # ── 3. Try fetching fundamentals (may get 401 on cloud IPs — handled gracefully) ──
+    try:
+        all_info_list = fetch_batch_info_parallel(available, max_workers=8)
+        info_map = {s["symbol"]: s for s in all_info_list if not s.get("error")}
+    except Exception:
+        info_map = {}
+
+    n_fundamental = len(info_map)
+
+    # ── 4. Score — always works (price-based); fundamentals are a bonus ──
+    scored = _score_tickers(available, period, schema, prices_df, info_map)
     top    = scored[:top_n]
 
     if not top:
-        return "⚠️ Scoring failed", "No stocks could be scored. Check data availability."
+        return "Scoring Failed", "No stocks could be scored. Check data."
 
     top_tickers = [s["symbol"] for s in top]
 
@@ -165,8 +189,9 @@ def _build_notification(session: str, cfg: dict) -> tuple[str, str]:
 
     # ── 6. Format notification ──
     is_morning = session == "morning"
+    data_note  = f"Fund: {n_fundamental}/{len(available)}" if n_fundamental < len(available) else f"{len(available)} stocks"
     header     = f"{'🌅 Opening' if is_morning else '🌆 Closing'} | {now_wib}\n"
-    header    += f"Universe: {source_label} · Top {len(top)} · {model.upper()}\n"
+    header    += f"{source_label} · Top {len(top)} · {model.upper()} · {data_note}\n"
     header    += "─" * 32
 
     lines = [header, ""]
