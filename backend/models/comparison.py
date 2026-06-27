@@ -84,8 +84,15 @@ def rank_results(results: dict[str, dict], schema: str) -> list[dict]:
             "effective_n":      result.get("effective_n"),
             "entropy":          result.get("entropy"),
             "n_selected":       result.get("n_selected"),
+            "qubo_energy":      result.get("qubo_energy"),
+            "risk_aversion":    result.get("risk_aversion"),
             "rmt_stats":        result.get("rmt_stats"),
             "interpretation":   result.get("interpretation"),
+            # Performance metrics (added post-audit fix)
+            "sortino_ratio":    result.get("sortino_ratio"),
+            "kelly":            result.get("kelly"),
+            # Frontier (winner only — set in compare endpoint)
+            "frontier":         result.get("frontier"),
         })
     ranked.sort(key=lambda x: x["schema_score"], reverse=True)
     # Add rank label
