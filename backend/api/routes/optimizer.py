@@ -4,7 +4,9 @@ from typing import List, Optional, Literal
 import numpy as np
 
 from data.fetcher import fetch_price_history, compute_stats
-from models.markowitz import compute_efficient_frontier, maximize_sharpe, minimize_variance, _global_min_variance_return
+from models.markowitz import (compute_efficient_frontier, maximize_sharpe, minimize_variance,
+                               _global_min_variance_return, portfolio_sortino)
+from models.kelly import kelly_from_returns
 from models.cvar import minimize_cvar, compute_cvar_frontier
 from models.rmt import clean_covariance_matrix
 from models.quantum import quantum_portfolio_optimize
@@ -73,6 +75,15 @@ def _run_optimize(req: OptimizeRequest, mu, cov, rets, valid_tickers):
     result["weights_map"] = {t: round(float(w), 6)
                              for t, w in zip(valid_tickers, result.get("weights", []))}
     result["model"]       = req.model
+
+    # Add Sortino Ratio (TDS Bab 6 / Sortino & Price 1994)
+    w_arr = np.array(result.get("weights") or [1/len(valid_tickers)]*len(valid_tickers))
+    result["sortino_ratio"] = portfolio_sortino(w_arr, mu, rets, req.risk_free_rate)
+
+    # Add Kelly sizing
+    port_daily_rets = rets @ w_arr
+    result["kelly"] = kelly_from_returns(port_daily_rets, scale=0.5)
+
     return result
 
 

@@ -32,6 +32,21 @@ def portfolio_sharpe(weights: np.ndarray, mean_returns: np.ndarray,
     return (ret - rf) / vol if vol > 1e-10 else 0.0
 
 
+def portfolio_sortino(weights: np.ndarray, mean_returns: np.ndarray,
+                      returns_matrix: np.ndarray, rf: float = 0.0) -> float:
+    """
+    Sortino Ratio: SR_sortino = √252 · E[Rp − Rf] / σd
+    σd = downside semi-deviation (only negative excess returns penalised).
+    Reference: Sortino & Price (1994). DOI: 10.3905/joi.3.3.59
+    """
+    port_rets = returns_matrix @ weights                       # daily portfolio returns
+    excess    = port_rets - rf / 252
+    mu_excess = excess.mean() * 252                            # annualised
+    downside  = excess[excess < 0]
+    sigma_d   = np.sqrt(np.mean(downside ** 2) * 252) if len(downside) > 0 else 1e-10
+    return float(mu_excess / sigma_d) if sigma_d > 1e-10 else 0.0
+
+
 def _global_min_variance_return(mean_returns: np.ndarray, cov_matrix: np.ndarray,
                                  allow_short: bool = False) -> float:
     """Compute the return of the global minimum variance portfolio."""

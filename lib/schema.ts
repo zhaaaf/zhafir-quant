@@ -7,7 +7,7 @@
  *   - Schedule: notification cadence
  */
 
-export type Schema = "day" | "swing" | "long";
+export type Schema = "day" | "swing" | "position" | "long";
 
 export interface SchemaConfig {
   key:           Schema;
@@ -70,6 +70,27 @@ export const SCHEMAS: Record<Schema, SchemaConfig> = {
     screenerSort:    "composite_score",
     screenerFilters: {},
     notifCadence:  "08:45 WIB setiap hari",
+  },
+
+  position: {
+    key:           "position",
+    label:         "Position Trade",
+    icon:          "📊",
+    color:         "#7dcfff",
+    tagline:       "Trend following — hold minggu hingga bulan",
+    holdPeriod:    "Beberapa minggu – 3 bulan",
+    defaultModel:  "markowitz",
+    defaultPeriod: "2y",
+    defaultRF:     5.75,
+    defaultAlpha:  0.95,
+    objective:     "Sharpe tahunan + trend filter (MA50/200 golden cross)",
+    screenerColumns: [
+      "symbol", "current_price", "composite_score", "score_label",
+      "momentum_6m", "momentum_12m", "ma_cross", "f_score", "composite_score",
+    ],
+    screenerSort:    "momentum_12m",
+    screenerFilters: {},
+    notifCadence:  "08:45 WIB Senin (awal pekan)",
   },
 
   long: {

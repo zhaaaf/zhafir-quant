@@ -234,14 +234,16 @@ const COLS: Col[] = [
 
 // Schema-specific column sets — all keys must exist in COLS above
 const SCHEMA_COLS: Record<Schema, string[]> = {
-  day:   ["symbol", "current_price", "rsi", "bb_signal", "macd_cross", "momentum_3m", "ma_cross", "composite_score", "score_label"],
-  swing: ["symbol", "current_price", "composite_score", "score_label", "momentum_3m", "momentum_6m", "f_score", "ma_cross", "rsi"],
-  long:  ["symbol", "current_price", "composite_score", "score_label", "f_score", "graham_signal", "margin_of_safety", "z_zone", "dividend_yield"],
+  day:      ["symbol", "current_price", "rsi", "bb_signal", "macd_cross", "momentum_3m", "ma_cross", "composite_score", "score_label"],
+  swing:    ["symbol", "current_price", "composite_score", "score_label", "momentum_3m", "momentum_6m", "f_score", "ma_cross", "rsi"],
+  position: ["symbol", "current_price", "composite_score", "score_label", "momentum_6m", "momentum_12m", "ma_cross", "f_score"],
+  long:     ["symbol", "current_price", "composite_score", "score_label", "f_score", "graham_signal", "margin_of_safety", "z_zone", "dividend_yield"],
 };
 const SCHEMA_SORT: Record<Schema, string> = {
-  day:   "composite_score",   // highest composite = best day trade candidate
-  swing: "composite_score",
-  long:  "f_score",           // highest F-Score = strongest fundamental
+  day:      "composite_score",
+  swing:    "composite_score",
+  position: "momentum_12m",   // best 12M trend momentum
+  long:     "f_score",
 };
 
 export default function UniverseTable({ stocks, selected, onToggle, onSelectAll, schema = "swing" }: Props) {

@@ -116,6 +116,12 @@ export interface OptimizeResult {
   risk_aversion?: number;
   rmt_stats?: RmtStats;
   interpretation?: Interpretation;
+  sortino_ratio?: number;
+  kelly?: {
+    kelly_full: number; kelly_half: number; win_rate: number;
+    avg_gain_pct: number; avg_loss_pct: number; gain_loss_ratio: number;
+    interpretation: string; note: string;
+  };
 }
 
 export interface FrontierPoint {
