@@ -6,6 +6,7 @@ import numpy as np
 from data.fetcher import fetch_price_history
 from models.backtest import backtest_portfolio, benchmark_returns
 from models.kelly import portfolio_kelly
+import db   # SQLite persistence (TDS Bab 5 fallback)
 
 router = APIRouter()
 
@@ -58,6 +59,11 @@ def run_backtest(req: BacktestRequest):
                                 capital=req.initial_capital)
         result["kelly"] = kelly
 
+        # Persist to SQLite (TDS Bab 5 fallback DB)
+        row_id = db.save_backtest({**result, "period": req.period})
+        if row_id:
+            result["saved_id"] = row_id
+
         # Benchmark (equal-weight buy-and-hold)
         if req.run_benchmark:
             bench = benchmark_returns(prices, tickers)
@@ -77,3 +83,9 @@ def run_backtest(req: BacktestRequest):
         raise
     except Exception as e:
         raise HTTPException(500, str(e))
+
+
+@router.get("/history")
+def backtest_history(limit: int = 20):
+    """Retrieve saved backtest results from SQLite (TDS Bab 5)."""
+    return {"history": db.get_backtest_history(limit)}

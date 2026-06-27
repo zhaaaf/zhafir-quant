@@ -5,6 +5,7 @@ from api.routes import screener, optimizer
 from api.routes import schedule, signals, screener_filter
 from api.routes import backtest_route
 from api.routes import control
+from api.routes import strategy
 from scheduler import start_scheduler, stop_scheduler
 
 
@@ -36,6 +37,7 @@ app.include_router(signals.router,         prefix="/api/signals",   tags=["signa
 app.include_router(schedule.router,        prefix="/api/schedule",  tags=["schedule"])
 app.include_router(backtest_route.router,  prefix="/api/backtest",  tags=["backtest"])
 app.include_router(control.router,         prefix="/api/control",   tags=["control"])
+app.include_router(strategy.router,        prefix="/api/strategy",  tags=["strategy"])
 
 
 @app.get("/")

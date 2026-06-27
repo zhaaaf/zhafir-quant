@@ -110,11 +110,81 @@ const models = [
   },
 ];
 
+const backtestModels = [
+  {
+    id: "sharpe", name: "Sharpe Ratio", color: "#7aa2f7",
+    ref: "Sharpe, W.F. (1966). Mutual Fund Performance. Journal of Business, 39(1).",
+    doi: "10.1086/294846",
+    formulation: ["SR = (√N · E[Rp − Rf]) / σp", "", "N = 252 (trading days/year)", "Rf = risk-free rate (daily)", "σp = std dev of excess returns"],
+    notes: "Standard risk-adjusted return metric. SR ≥ 1 = acceptable; SR ≥ 2 = excellent.",
+  },
+  {
+    id: "sortino", name: "Sortino Ratio", color: "#9ece6a",
+    ref: "Sortino, F. & Price, L. (1994). Journal of Investing, 3(3), 59–64.",
+    doi: "10.3905/joi.3.3.59",
+    formulation: ["SND = (√N · E[Rp − Rf]) / σd", "", "σd = √( mean(min(0, Rp−Rf)²) )", "← only downside returns penalised", "Upside volatility is NOT risk"],
+    notes: "Preferred over Sharpe for personal traders. Upward fluctuations are gains, not risk. Sortino > Sharpe when strategy has positive skew.",
+  },
+  {
+    id: "calmar", name: "Calmar Ratio", color: "#e0af68",
+    ref: "Calmar, T. (1991). The Calmar Ratio: A Smoother Tool. Futures Magazine.",
+    doi: "",
+    formulation: ["Calmar = Ann. Return / Max Drawdown", "", "Max Drawdown = max(Peak − Trough) / Peak", "  = max₁≤t₁≤t₂≤T [(V(t₁)−V(t₂)) / V(t₁)]"],
+    notes: "Measures return per unit of worst-case historical loss. Preferred by CTAs (Commodity Trading Advisors). Calmar > 0.5 = acceptable.",
+  },
+  {
+    id: "kelly", name: "Kelly Criterion", color: "#bb9af7",
+    ref: "Kelly, J.L. (1956). Bell System Technical Journal, 35(4), 917–926.",
+    doi: "10.1002/j.1538-7305.1956.tb03809.x",
+    formulation: ["f* = (b·p − q) / b", "", "b = avg_gain / avg_loss  (gain-to-loss ratio)", "p = P(winning trade)  (historical win rate)", "q = 1 − p  (loss probability)", "", "Half-Kelly (TDS Bab 2): f_half = f* / 2"],
+    notes: "Maximizes logarithmic wealth growth. TDS Bab 2 uses Half-Kelly by default (scale=0.5) for conservative risk management. Full Kelly can cause ruin via volatility drag.",
+  },
+];
+
 export default function ModelsPage() {
   return (
     <div className="min-h-screen">
       <Topbar title="Mathematical Models" subtitle="equations & references" />
       <div className="p-4 md:p-6 max-w-4xl space-y-6">
+
+        {/* Section: Backtesting / Performance Metrics (TDS Bab 6) */}
+        <div>
+          <div className="text-[#e0af68] font-mono text-xs uppercase tracking-wider mb-3 flex items-center gap-2">
+            <span className="flex-1 border-t border-[#2a2a3e]" />
+            Backtesting & Performance Metrics — TDS Bab 6
+            <span className="flex-1 border-t border-[#2a2a3e]" />
+          </div>
+          <div className="space-y-3">
+            {backtestModels.map(m => (
+              <div key={m.id} className="bg-[#11111b] border border-[#2a2a3e] rounded-xl overflow-hidden">
+                <div className="px-5 py-3 border-b border-[#2a2a3e]" style={{ borderLeftWidth: 3, borderLeftColor: m.color }}>
+                  <h2 className="font-bold text-sm" style={{ color: m.color }}>{m.name}</h2>
+                </div>
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <pre className="bg-[#0a0a0f] border border-[#1e1e2e] rounded-lg p-3 text-xs font-mono text-[#a6adc8] leading-relaxed overflow-x-auto whitespace-pre">
+                    {m.formulation.join("\n")}
+                  </pre>
+                  <div className="space-y-3">
+                    <div className="text-[#6c7086] text-xs">{m.notes}</div>
+                    <div className="text-[#a6adc8] text-xs">{m.ref}</div>
+                    {m.doi && (
+                      <a href={`https://doi.org/${m.doi}`} target="_blank" rel="noopener noreferrer"
+                        className="text-[#45475a] hover:text-[#7aa2f7] font-mono text-xs transition-colors block">
+                        DOI: {m.doi} ↗
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="text-[#7aa2f7] font-mono text-xs uppercase tracking-wider mb-3 flex items-center gap-2">
+          <span className="flex-1 border-t border-[#2a2a3e]" />
+          Portfolio Optimization Models
+          <span className="flex-1 border-t border-[#2a2a3e]" />
+        </div>
         {models.map(m => (
           <div key={m.id} className="bg-[#11111b] border border-[#2a2a3e] rounded-xl overflow-hidden">
             {/* Header */}
