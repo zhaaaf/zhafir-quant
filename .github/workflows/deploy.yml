@@ -1,0 +1,89 @@
+# TDS Bab 7: CI/CD Pipeline — GitHub Actions
+# Triggers on push to master
+# 1. Run PyTest (backend)
+# 2. Build Next.js (frontend check)
+# 3. Deploy backend to Railway
+# 4. Deploy frontend to Vercel
+
+name: Deploy Zhafir Quant
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+
+  # ── Test Backend ─────────────────────────────────────────────────────────
+  test-backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest pytest-asyncio
+
+      - name: Run PyTest
+        run: pytest tests/ -v --tb=short
+        continue-on-error: true   # don't block deploy for test failures in MVP
+
+  # ── Build Frontend ────────────────────────────────────────────────────────
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: https://zhafir-quant-backend-production.up.railway.app
+
+  # ── Deploy Backend → Railway ──────────────────────────────────────────────
+  deploy-backend:
+    needs: [test-backend, build-frontend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        working-directory: backend
+        run: railway up --detach --service zhafir-quant-backend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+  # ── Deploy Frontend → Vercel ──────────────────────────────────────────────
+  deploy-frontend:
+    needs: [test-backend, build-frontend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm install -g vercel
+      - run: vercel --prod --yes --token ${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

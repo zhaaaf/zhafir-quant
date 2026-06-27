@@ -13,6 +13,7 @@ import asyncio, pytz, traceback
 from datetime import datetime
 
 import store, notifier
+from telegram_notifier import send_telegram, format_telegram_portfolio
 from data.fetcher import fetch_batch_info_parallel, fetch_price_history, compute_stats
 from data.universe import UNIVERSES
 from models.stock_scoring import (
@@ -228,15 +229,32 @@ def _build_notification(session: str, cfg: dict) -> tuple[str, str]:
 
 def _run_pipeline(session: str) -> None:
     cfg = store.get()
-    if not cfg.get("notifications_enabled") or not cfg.get("ntfy_topic"):
+    if not cfg.get("notifications_enabled"):
+        return
+    has_ntfy     = bool(cfg.get("ntfy_topic"))
+    has_telegram = cfg.get("telegram_enabled") and cfg.get("telegram_bot_token") and cfg.get("telegram_chat_id")
+    if not has_ntfy and not has_telegram:
         return
     try:
         title, body = _build_notification(session, cfg)
-        notifier.send(cfg["ntfy_topic"], title, body,
-                      tags=["chart_with_upwards_trend" if session == "morning" else "bell"])
+        tags = ["chart_with_upwards_trend" if session == "morning" else "bell"]
+
+        # ntfy.sh
+        if has_ntfy:
+            notifier.send(cfg["ntfy_topic"], title, body, tags=tags)
+
+        # Telegram (TDS Bab 3)
+        if has_telegram:
+            tg_text = format_telegram_portfolio(title, body)
+            send_telegram(cfg["telegram_chat_id"], cfg["telegram_bot_token"], tg_text)
+
     except Exception:
-        notifier.send(cfg.get("ntfy_topic", ""), "⚠️ Pipeline Error",
-                      traceback.format_exc()[-500:])
+        err = traceback.format_exc()[-500:]
+        if has_ntfy:
+            notifier.send(cfg.get("ntfy_topic", ""), "Pipeline Error", err)
+        if has_telegram:
+            send_telegram(cfg.get("telegram_chat_id",""), cfg.get("telegram_bot_token",""),
+                          f"Pipeline Error\n<code>{err}</code>")
 
 
 # ── Async wrappers ───────────────────────────────────────────────────────────

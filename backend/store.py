@@ -7,13 +7,16 @@ _LOCK = threading.Lock()
 _DEFAULT = {
     "ntfy_topic":             "",
     "notifications_enabled":  False,
-    # Auto-pipeline settings (no manual watchlist needed)
+    # Telegram (TDS Bab 3)
+    "telegram_bot_token":     "",
+    "telegram_chat_id":       "",
+    "telegram_enabled":       False,
+    # Auto-pipeline settings
     "universe":    "IDX LQ45",
     "top_n":       8,
     "schema":      "swing",
     "model":       "markowitz",
     "period":      "1y",
-    # Legacy manual watchlist (optional override)
     "watchlist":   [],
     "use_watchlist": False,
 }

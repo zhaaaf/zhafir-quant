@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.routes import screener, optimizer
 from api.routes import schedule, signals, screener_filter
 from api.routes import backtest_route
+from api.routes import control
 from scheduler import start_scheduler, stop_scheduler
 
 
@@ -34,6 +35,7 @@ app.include_router(optimizer.router,       prefix="/api/optimizer", tags=["optim
 app.include_router(signals.router,         prefix="/api/signals",   tags=["signals"])
 app.include_router(schedule.router,        prefix="/api/schedule",  tags=["schedule"])
 app.include_router(backtest_route.router,  prefix="/api/backtest",  tags=["backtest"])
+app.include_router(control.router,         prefix="/api/control",   tags=["control"])
 
 
 @app.get("/")

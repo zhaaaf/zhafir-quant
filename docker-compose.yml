@@ -1,0 +1,124 @@
+# TDS Bab 7: Full Production Stack — Oracle Cloud ARM64 / OCI Always Free
+# Deploy: docker compose up --build -d
+# Access: via Cloudflare Tunnel (no public ports exposed)
+#
+# Architecture:
+#   timescaledb → redis → fastapi_backend + celery_worker → nextjs_frontend → cloudflared
+
+version: '3.8'
+
+networks:
+  quant_internal_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+services:
+
+  # ── TimescaleDB (TDS Bab 5) ─────────────────────────────────────────────────
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: quant_timescaledb
+    environment:
+      POSTGRES_DB:       quant_personal_db
+      POSTGRES_USER:     quant_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ChangeMe_SecurePassword123!}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - quant_internal_network
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quant_admin -d quant_personal_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis (Celery broker + cache) ──────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: quant_redis
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - quant_internal_network
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 3
+
+  # ── FastAPI Backend ────────────────────────────────────────────────────────
+  fastapi_backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: quant_backend_api
+    environment:
+      DATABASE_URL: postgresql://quant_admin:${POSTGRES_PASSWORD:-ChangeMe_SecurePassword123!}@timescaledb:5432/quant_personal_db
+      REDIS_URL:    redis://redis:6379/0
+      PORT:         "8000"
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - quant_internal_network
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Celery Worker (TDS Bab 1 / Bab 7) ────────────────────────────────────
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: quant_celery_worker
+    command: celery -A celery_app worker --loglevel=info -c 2 -Q default
+    environment:
+      DATABASE_URL: postgresql://quant_admin:${POSTGRES_PASSWORD:-ChangeMe_SecurePassword123!}@timescaledb:5432/quant_personal_db
+      REDIS_URL:    redis://redis:6379/0
+    depends_on:
+      - redis
+      - timescaledb
+    networks:
+      - quant_internal_network
+    restart: always
+
+  # ── Next.js Frontend ──────────────────────────────────────────────────────
+  nextjs_frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend.prod
+    container_name: quant_frontend_ui
+    environment:
+      NEXT_PUBLIC_API_URL: http://fastapi_backend:8000
+    depends_on:
+      - fastapi_backend
+    networks:
+      - quant_internal_network
+    restart: always
+
+  # ── Cloudflare Tunnel (TDS Bab 2 — no public ports needed) ───────────────
+  cloudflared_tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflare_tunnel
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-REPLACE_WITH_YOUR_TUNNEL_TOKEN}
+    depends_on:
+      - nextjs_frontend
+      - fastapi_backend
+    networks:
+      - quant_internal_network
+    restart: always
