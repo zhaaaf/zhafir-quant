@@ -104,7 +104,7 @@ def _run_frontier(req: OptimizeRequest, mu, cov, rets, valid_tickers):
 
 class CompareRequest(BaseModel):
     tickers:        List[str] = Field(..., min_length=2, max_length=30)
-    schema:         Literal["day", "swing", "long"] = "swing"
+    schema:         Literal["day", "swing", "position", "long"] = "swing"
     period:         str   = "1y"
     risk_free_rate: float = 0.0575
     allow_short:    bool  = False
@@ -203,7 +203,7 @@ def compare_models(req: CompareRequest):
             }
 
         else:
-            # Swing / Long: standard close-to-close log returns
+            # Swing / Long / Position: standard close-to-close log returns
             valid_tickers, mu, cov, rets = _load_data(tickers, req.period)
 
             def run_model_std(model_name: str) -> dict:

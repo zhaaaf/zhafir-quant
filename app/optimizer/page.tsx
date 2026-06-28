@@ -311,24 +311,52 @@ function OptimizerInner() {
                     )}
                   </div>
 
+                  {/* Day schema note */}
+                  {schema === "day" && (
+                    <div className="bg-[#e0af68]/10 border border-[#e0af68]/20 rounded-lg px-3 py-2 text-xs text-[#e0af68] font-mono">
+                      ⚡ Day Trade mode: nilai Return/Vol/Sharpe adalah HARIAN (O→C). Ann. Sharpe = Daily × √252.
+                    </div>
+                  )}
+
                   {/* Interpretation */}
                   {activeModel.interpretation && (
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     <ResultInterpretation interp={activeModel.interpretation as any} />
                   )}
 
-                  {/* Metrics */}
+                  {/* Metrics — day schema uses daily units, others annual */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {[
-                      { label: "Return (ann.)",  value: fmtPct(activeModel.expected_return), color: "#9ece6a" },
-                      { label: "Volatilitas",    value: fmtPct(activeModel.volatility),       color: "#f7768e" },
-                      { label: "Sharpe Ratio",   value: fmt(activeModel.sharpe_ratio, 3),     color: "#7aa2f7" },
-                      { label: activeModel.model === "cvar" ? "CVaR" : activeModel.model === "entropy" ? "Eff-N" : "Assets",
-                        value: activeModel.model === "cvar"    ? fmt(activeModel.cvar, 4)
-                             : activeModel.model === "entropy" ? fmt(activeModel.effective_n, 2)
-                             : String(activeModel.tickers?.length ?? "—"),
-                        color: "#e0af68" },
-                    ].map(({ label, value, color }) => (
+                    {(() => {
+                      const isDay = schema === "day";
+                      const ret   = activeModel.expected_return ?? 0;
+                      const vol   = activeModel.volatility ?? 0;
+                      const sr    = activeModel.sharpe_ratio ?? 0;
+                      return [
+                        {
+                          label: isDay ? "Return/hari" : "Return (ann.)",
+                          value: isDay ? `${(ret*100).toFixed(3)}%` : fmtPct(ret),
+                          color: ret >= 0 ? "#9ece6a" : "#f7768e",
+                        },
+                        {
+                          label: isDay ? "Vol/hari" : "Volatilitas",
+                          value: isDay ? `${(vol*100).toFixed(2)}%` : fmtPct(vol),
+                          color: "#f7768e",
+                        },
+                        {
+                          label: isDay ? "Daily Sharpe" : "Sharpe Ratio",
+                          value: fmt(sr, 3),
+                          color: sr >= (isDay ? 0.15 : 1.0) ? "#9ece6a" : sr >= (isDay ? 0.05 : 0.5) ? "#e0af68" : "#f7768e",
+                        },
+                        {
+                          label: activeModel.model === "cvar" ? "CVaR" : activeModel.model === "entropy" ? "Eff-N" : isDay ? "Ann. Sharpe" : "Assets",
+                          value: activeModel.model === "cvar"    ? fmt(activeModel.cvar, 4)
+                               : activeModel.model === "entropy" ? fmt(activeModel.effective_n, 2)
+                               : isDay ? fmt(sr * Math.sqrt(252), 2)
+                               : String(activeModel.tickers?.length ?? "—"),
+                          color: "#e0af68",
+                        },
+                      ];
+                    })().map(({ label, value, color }) => (
                       <div key={label} className="bg-[#11111b] border border-[#2a2a3e] rounded-lg p-3">
                         <div className="text-[#6c7086] text-xs mb-1">{label}</div>
                         <div className="font-mono font-bold text-xl leading-tight" style={{ color }}>{value}</div>

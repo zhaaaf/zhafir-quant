@@ -51,6 +51,13 @@ def schema_score(result: dict, model: str, schema: str) -> float:
         model_bonus = 0.05 if model == "rmt" else 0.0
         return sharpe - vol_penalty + model_bonus
 
+    elif schema == "position":
+        # Position/trend following: Sharpe + 12M momentum consistency
+        # RMT gets bonus (noise-filtered covariance → accurate medium-term)
+        vol_penalty = max(0, vol - 0.35) * 1.5   # wider tolerance than swing
+        model_bonus = 0.08 if model == "rmt" else 0.0
+        return sharpe - vol_penalty + model_bonus
+
     elif schema == "long":
         # Sharpe + diversification bonus (effective N scaled 0-1)
         eff_n = float(result.get("effective_n") or 1.0)
